@@ -126,7 +126,8 @@ SRC_FOLDER=""
 DEST_FOLDER=""
 EXCLUSION_FILE=""
 
-RSYNC_FLAGS="-D --compress --numeric-ids --links --hard-links --one-file-system --itemize-changes --times --recursive --perms --owner --group"
+# using --compress has problems when zlib is external
+RSYNC_FLAGS="--devices --specials --numeric-ids --links --hard-links --one-file-system --itemize-changes --times --recursive --perms --owner --group"
 
 while :; do
 	case $1 in
