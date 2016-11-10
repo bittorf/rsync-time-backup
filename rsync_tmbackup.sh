@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-APPNAME=$(basename $0 | sed "s/\.sh$//")
+APPNAME="$( basename "$0" | sed "s/\.sh$//" )"
 
 # -----------------------------------------------------------------------------
 # Log functions
@@ -32,7 +32,7 @@ trap 'fn_terminate_script' SIGINT
 # Small utility functions for reducing code duplication
 # -----------------------------------------------------------------------------
 fn_display_usage() {
-	echo "Usage: $(basename $0) [OPTION]... <SOURCE> <[USER@HOST:]DESTINATION> [exclude-pattern-file]"
+	echo "Usage: $( basename "$0" ) [OPTION]... <SOURCE> <[USER@HOST:]DESTINATION> [exclude-pattern-file]"
 	echo ""
 	echo "Options"
 	echo " -p, --port           SSH port."
@@ -52,7 +52,7 @@ fn_parse_date() {
 }
 
 fn_find_backups() {
-	fn_run_cmd "find "$DEST_FOLDER" -type d -name "????-??-??-??????" -prune | sort -r"
+	fn_run_cmd "find '$DEST_FOLDER' -type d -name '????-??-??-??????' -prune | sort -r"
 }
 
 fn_expire_backup() {
@@ -68,7 +68,7 @@ fn_expire_backup() {
 }
 
 fn_parse_ssh() {
-	if [[ "$DEST_FOLDER" =~ ^[A-Za-z0-9\._%\+\-]+@[A-Za-z0-9.\-]+\:.+$ ]]
+	if [[ "$DEST_FOLDER" =~ ^[A-Za-z0-9\._%\+-]+@[A-Za-z0-9.-]+:.+$ ]]
 	then
 		SSH_USER=$(echo "$DEST_FOLDER" | sed -E  's/^([A-Za-z0-9\._%\+\-]+)@([A-Za-z0-9.\-]+)\:(.+)$/\1/')
 		SSH_HOST=$(echo "$DEST_FOLDER" | sed -E  's/^([A-Za-z0-9\._%\+\-]+)@([A-Za-z0-9.\-]+)\:(.+)$/\2/')
@@ -83,6 +83,7 @@ fn_run_cmd() {
 	then
 		eval "$SSH_CMD '$1'"
 	else
+		# shellcheck disable=SC2086
 		eval $1
 	fi
 }
@@ -139,7 +140,7 @@ while :; do
 			;;
 		--rsync-get-flags)
 			shift
-			echo $RSYNC_FLAGS
+			echo "$RSYNC_FLAGS"
 			exit
 			;;
 		--rsync-set-flags)
@@ -299,8 +300,8 @@ while : ; do
 	# Default value for $PREV ensures that the most recent backup is never deleted.
 	PREV="0000-00-00-000000"
 	for FILENAME in $(fn_find_backups | sort -r); do
-		BACKUP_DATE=$(basename "$FILENAME")
-		TIMESTAMP=$(fn_parse_date $BACKUP_DATE)
+		BACKUP_DATE="$( basename "$FILENAME" )"
+		TIMESTAMP="$( fn_parse_date "$BACKUP_DATE" )"
 
 		# Skip if failed to parse date...
 		if [ -z "$TIMESTAMP" ]; then
@@ -308,9 +309,9 @@ while : ; do
 			continue
 		fi
 
-		if   [ $TIMESTAMP -ge $KEEP_ALL_DATE ]; then
+		if   [ "$TIMESTAMP" -ge "$KEEP_ALL_DATE" ]; then
 			true
-		elif [ $TIMESTAMP -ge $KEEP_DAILIES_DATE ]; then
+		elif [ "$TIMESTAMP" -ge "$KEEP_DAILIES_DATE" ]; then
 			# Delete all but the most recent of each day.
 			[ "${BACKUP_DATE:0:10}" == "${PREV:0:10}" ] && fn_expire_backup "$FILENAME"
 		else
@@ -350,6 +351,7 @@ while : ; do
 
 	fn_run_cmd "echo $MYPID > $INPROGRESS_FILE"
 
+	# shellcheck disable=SC2086
 	eval $CMD
 
 	# -----------------------------------------------------------------------------
@@ -376,13 +378,14 @@ while : ; do
 	# -----------------------------------------------------------------------------
 	# Check whether rsync reported any errors
 	# -----------------------------------------------------------------------------
-	if [ -n "$(grep "rsync:" "$LOG_FILE")" ]; then
+	grep -q "rsync:" "$LOG_FILE" && {
 		fn_log_warn "Rsync reported a warning, please check '$LOG_FILE' for more details."
-	fi
-	if [ -n "$(grep "rsync error:" "$LOG_FILE")" ]; then
+	}
+
+	grep -q "rsync error:" "$LOG_FILE" && {
 		fn_log_error "Rsync reported an error, please check '$LOG_FILE' for more details."
 		exit 1
-	fi
+	}
 
 	# -----------------------------------------------------------------------------
 	# Add symlink to last successful backup
